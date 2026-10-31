@@ -30,7 +30,7 @@ export function makeTrack({ bpm, root, minor = true, lead = 0.37, sections, seed
   });
   const r = 48 + NOTE[root];
   const scale = minor ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11];
-  const degrees = minor ? [0, 5, 2, 6] : [0, 5, 3, 4]; // i-VI-III-VII / I-vi-IV-V
+  const degrees = minor ? [0, 0, 5, 6] : [0, 0, 3, 4]; // i-i-VI-VII / I-I-IV-V
   const chordOf = (d) => [0, 2, 4].map((k) => { const idx = d + k; return r + 12 + scale[idx % 7] + 12 * Math.floor(idx / 7); });
 
   let bar = 0;
@@ -47,7 +47,7 @@ export function makeTrack({ bpm, root, minor = true, lead = 0.37, sections, seed
         if (name !== 'breakdown') add(tb + beat / 2, hat, 0.25, 0.2);
         if (full || name === 'build') { add(tb + beat / 4, hat, 0.1, -0.2); add(tb + 3 * beat / 4, hat, 0.1, -0.2); }
         if (full && (q === 1 || q === 3)) add(tb, clap, 0.35);
-        if (full) add(tb + beat / 2, tone(midiHz(r - 12 + scale[deg % 7]), beat / 2, 4, 6), 0.45); // offbeat bass
+        if (full) add(tb + beat / 2, tone(midiHz(r - 12 + scale[deg % 7]), beat / 2, 4, 6), 0.8); // offbeat bass
       }
       if (name !== 'intro' && name !== 'outro') for (const m of chordOf(deg)) add(t0, tone(midiHz(m), 4 * beat, 5, 0.6), name === 'breakdown' ? 0.22 : 0.12, (m % 3 - 1) * 0.3);
     }

@@ -1,17 +1,17 @@
 {
   "name": "autodj",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test-audio": "node scripts/make-test-tracks.mjs test-audio"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/mrmaple-tech/AutoDJ.git"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/mrmaple-tech/AutoDJ/issues"
@@ -31,5 +31,7 @@
     "typescript": "^7.0.2",
     "vite": "^5.4.21",
     "vitest": "^2.1.9"
-  }
+  },
+  "private": true,
+  "type": "module"
 }
