@@ -16,6 +16,9 @@ npm run dev
 
 Open the printed URL and drop some tracks in. Production build: `npm run build && npm run preview`.
 
+Don't open `index.html` directly or serve the repo root: the page needs a build. Pushing to `main` deploys to
+GitHub Pages via `.github/workflows/pages.yml` (repo **Settings → Pages → Source: GitHub Actions**).
+
 ### Tests
 
 ```bash
