@@ -15,7 +15,7 @@ onmessage = ({ data: m }) => {
       essentia ??= new Essentia(EssentiaWASM);
       reply({ result: analyze(m.mono, m.sr, essentia, progress) });
     } else if (m.type === 'stretch') {
-      const [L, R] = stretch(m.L, m.R, m.sr, m.beat0, m.bpm, m.entryBar, m.tempos);
+      const [L, R] = stretch(m.L, m.R, m.sr, m.beat0, m.bpm, m.entryBar, m.tempos, m.semis);
       reply({ result: [L, R] }, [L.buffer, R.buffer]);
     } else if (m.type === 'mp3') {
       reply({ result: encodeMp3(m.L, m.R, m.sr, progress) });

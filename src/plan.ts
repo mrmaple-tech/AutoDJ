@@ -2,11 +2,12 @@
 // Pure data in, pure data out — the audio engine just executes the result.
 import { barLen, PHRASE, type Analysis } from './analysis';
 
-export interface Track extends Analysis { id: string; name: string }
+export interface Track extends Analysis { id: string; name: string; seg?: { drop: number; end: number } } // seg: mashup highlight (R7)
 export type TType = 'blend' | 'filter' | 'echo' | 'cut';
 export interface Transition { type: TType; bars: number; outBar: number; inBar: number; reason: string }
 
 export const MAX_STRETCH = 0.06; // R2.3
+export const MAX_GAP = 0.08; // R2.6: blend only if each deck stretches <= 4% (midpoint tempo)
 const KILL = -40; // dB, EQ kill (R4.1)
 
 // ---------- R3: Camelot ----------
@@ -88,18 +89,20 @@ export function outroBar(t: Track) {
   while (i > 0 && t.sections[i - 1] === 'outro') i--;
   return Math.min(i * PHRASE, Math.max(0, t.bars - PHRASE));
 }
-const startsAfter = (type: TType) => type === 'echo' || type === 'cut'; // incoming starts at window end
+export const startsAfter = (type: TType) => type === 'echo' || type === 'cut'; // incoming starts at window end
 
 /** Place a transition of a given type/length (R5.5: phrase-aligned, downbeat on downbeat). */
 export function place(a: Track, b: Track, type: TType, bars: number, outBar?: number): Omit<Transition, 'reason'> {
-  const firstDrop = Math.max(0, phraseStart(b, 'drop'));
+  const firstDrop = b.seg ? b.seg.drop : Math.max(0, phraseStart(b, 'drop'));
   if (outBar === undefined) {
-    outBar = outroBar(a);
-    if (outBar + bars > a.bars) outBar = Math.floor((a.bars - bars) / PHRASE) * PHRASE;
+    // mix point M on a phrase boundary (R5.5): blends start there, echo/cut switch there
+    let M = a.seg ? a.seg.end - (startsAfter(type) ? 0 : bars) : outroBar(a);
+    if (!startsAfter(type) && M + bars > a.bars) M = Math.floor((a.bars - bars) / PHRASE) * PHRASE;
+    outBar = startsAfter(type) ? M - bars : M;
   }
   outBar = Math.max(0, Math.min(outBar, a.bars - bars));
   // R5.6: time the blend so the incoming drop lands as the window ends; a cut jumps straight to the drop (R5.4)
-  const inBar = type === 'cut' ? firstDrop : type === 'echo' ? 0 : Math.max(0, firstDrop - bars);
+  const inBar = type === 'cut' || (type === 'echo' && b.seg) ? firstDrop : type === 'echo' ? 0 : Math.max(0, firstDrop - bars);
   return { type, bars, outBar, inBar };
 }
 
@@ -108,12 +111,26 @@ export function chooseTransition(a: Track, b: Track, pos: number): Transition {
   const gap = bpmGap(a.bpm, b.bpm);
   const rel = keyRelation(a.camelot, b.camelot);
   const g = `${(gap * 100).toFixed(1)}% BPM gap`;
-  if (gap > MAX_STRETCH) return { ...place(a, b, 'echo', 1), reason: `R2.6/R5.3: ${g} too wide to beatmatch → echo out` };
-  if (rel.kind === 'clash') return { ...place(a, b, 'cut', 0), reason: `R3.6/R5.4: ${a.camelot}→${b.camelot} clash → quick cut on the one` };
-  if (rel.kind === 'boost' || rel.kind === 'shift') return { ...place(a, b, 'filter', 8), reason: `R3.4/R5.2: ${a.camelot}→${b.camelot} energy ${rel.kind} → short filter blend` };
+  const m = a.seg ? ' (mashup)' : '';
+  if (gap > MAX_GAP) return { ...place(a, b, 'echo', 1), reason: `R2.6/R5.3: ${g} too wide to beatmatch → echo out${m}` };
+  if (rel.kind !== 'perfect' && rel.kind !== 'adjacent' && rel.kind !== 'relative' && rel.kind !== 'diagonal')
+    return { ...place(a, b, 'filter', 8), reason: `R3.4/R3.6/R5.2: ${a.camelot}→${b.camelot} ${rel.kind} → 8-bar filter blend masks the key change${m}` };
   const outroLen = a.bars - outroBar(a);
-  const long = pos < 0.5 && outroLen >= 16; // R5.1 / R6.3
-  return { ...place(a, b, 'blend', long ? 32 : 16), reason: `R5.1: ${a.camelot}→${b.camelot} ${rel.kind}, ${g} → ${long ? 32 : 16}-bar bass-swap blend${long ? ' (warm-up)' : ''}` };
+  const bars = a.seg ? 8 : pos < 0.5 && outroLen >= 16 ? 32 : 16; // R5.1 / R6.3 / R7.2
+  return { ...place(a, b, 'blend', bars), reason: `R5.1: ${a.camelot}→${b.camelot} ${rel.kind}, ${g} → ${bars}-bar bass-swap blend${m}` };
+}
+
+/** R7.1: the best ~50 s — the phrase-aligned window starting on a drop with the highest mean energy. */
+export const HIGHLIGHT_SEC = 50;
+export function highlight(t: Track) {
+  const L = Math.max(PHRASE, Math.round(HIGHLIGHT_SEC / barLen(t.bpm) / PHRASE) * PHRASE);
+  const drops = t.sections.flatMap((s, i) => (s === 'drop' ? [i * PHRASE] : []));
+  let drop = 0, best = -1;
+  for (const s of drops.length ? drops : t.sections.map((_, i) => i * PHRASE)) {
+    const v = t.energyCurve.slice(s, s + L).reduce((x, y) => x + y, 0) / L; // short windows at the end score lower
+    if (v > best) { best = v; drop = s; }
+  }
+  return { drop, end: Math.min(t.bars, drop + L) };
 }
 
 export const defaultTransitions = (ts: Track[]) => ts.slice(1).map((b, i) => chooseTransition(ts[i], b, ts.length > 2 ? i / (ts.length - 2) : 0));
@@ -125,6 +142,7 @@ export interface Deck {
   tempos: number[]; // per bar from entryBar
   barTimes: number[]; // mix time of each bar boundary entryBar..exitBar
   start: number; end: number;
+  semis?: number; // pitch shift in semitones (A×B mashup, R8.2)
 }
 
 const transTempo = (a: Track, b: Track, t: Transition) =>
@@ -135,10 +153,10 @@ export function buildTimeline(ts: Track[], trans: Transition[]): Deck[] {
   let start = 0;
   ts.forEach((t, i) => {
     const prev = trans[i - 1], next = trans[i];
-    const entryBar = prev ? prev.inBar : Math.max(0, t.energyCurve.findIndex((e) => e > 0.05));
+    const entryBar = prev ? prev.inBar : t.seg ? Math.max(0, t.seg.drop - PHRASE) : Math.max(0, t.energyCurve.findIndex((e) => e > 0.05));
     const inT = prev ? transTempo(ts[i - 1], t, prev).in : t.bpm;
     const inEnd = prev && !startsAfter(prev.type) ? entryBar + prev.bars : entryBar;
-    const exitBar = next ? next.outBar + next.bars : t.bars;
+    const exitBar = next ? next.outBar + next.bars : t.seg ? t.seg.end : t.bars;
     const outStart = next ? Math.max(next.outBar, inEnd) : exitBar;
     const outT = next ? transTempo(t, ts[i + 1], next).out : inT;
     const tempos: number[] = [], barTimes = [start];
@@ -156,6 +174,46 @@ export function buildTimeline(ts: Track[], trans: Transition[]): Deck[] {
 
 /** Mix time of a bar of this deck's track. */
 export const barAt = (d: Deck, bar: number) => d.barTimes[Math.max(0, Math.min(d.barTimes.length - 1, bar - d.entryBar))];
+
+// ---------- R8: A × B mashup (two songs at once) ----------
+const SAFE: KeyKind[] = ['perfect', 'adjacent', 'relative', 'diagonal'];
+/** Camelot code after shifting a key by s semitones (the number moves 7 steps per semitone). */
+export const shiftCamelot = (c: string, s: number) => `${((((parseInt(c) - 1 + 7 * s) % 12) + 12) % 12) + 1}${c.slice(-1)}`;
+/** R8.2: smallest pitch shift (semitones) that makes `top` harmonically compatible with `bed`. */
+export function keyShift(top: string, bed: string) {
+  for (const s of [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6]) if (SAFE.includes(keyRelation(shiftCamelot(top, s), bed).kind)) return s;
+  return 0;
+}
+const flatDeck = (track: Track, entryBar: number, exitBar: number, tempo: number, start: number, semis = 0): Deck => {
+  const barTimes = Array.from({ length: exitBar - entryBar + 1 }, (_, j) => start + j * barLen(tempo));
+  return { track, entryBar, exitBar, tempos: Array(exitBar - entryBar).fill(tempo), barTimes, start, end: barTimes[barTimes.length - 1], semis };
+};
+
+/** R8: layer `top` (vocals/melody) over `bed` (beat + bassline), best drop on best drop. */
+export function buildLayer(top: Track, bed: Track): { decks: Deck[]; ev: Auto[]; reason: string } | { error: string } {
+  const gap = bpmGap(top.bpm, bed.bpm);
+  if (gap > 2 * MAX_STRETCH) return { error: `Tempos too far apart (${top.bpm.toFixed(0)} vs ${bed.bpm.toFixed(0)} BPM, ${(gap * 100).toFixed(0)}%) — each song would stretch more than 6% (R2.3).` };
+  const T = (top.bpm + bed.bpm) / 2; // R2.5 both decks meet in the middle
+  const semis = keyShift(top.camelot, bed.camelot);
+  const ht = highlight(top), hb = highlight(bed);
+  const L = Math.min(ht.end - ht.drop, bed.bars - hb.drop); // layered bars
+  const lead = Math.min(PHRASE, hb.drop), outro = Math.min(PHRASE, bed.bars - hb.drop - L), rise = Math.min(4, ht.drop);
+  const B = flatDeck(bed, hb.drop - lead, hb.drop + L + outro, T, 0);
+  const A = flatDeck(top, ht.drop - rise, ht.drop + L, T, barAt(B, hb.drop - rise), semis); // R5.5 drop on drop
+  const drop = barAt(B, hb.drop), end = A.end, beat = barLen(T) / 4;
+  const ev: Auto[] = [
+    // top: never its bassline (R4.1); rises in through a high-pass sweep, then stays thinned (R8.1)
+    { deck: 1, p: 'low', t: A.start, v: KILL }, { deck: 1, p: 'gain', t: A.start, v: 0 }, { deck: 1, p: 'gain', t: drop, v: 1, ramp: 'lin' },
+    { deck: 1, p: 'hp', t: A.start, v: 2000 }, { deck: 1, p: 'hp', t: drop, v: 180, ramp: 'exp' },
+    { deck: 1, p: 'gain', t: end - 2 * barLen(T), v: 1 }, { deck: 1, p: 'gain', t: end, v: 0, ramp: 'lin' },
+    // bed: dip highs while the top is in so vocals sit on top (R8.1), then fade out (R7.3)
+    { deck: 0, p: 'high', t: drop - beat, v: 0 }, { deck: 0, p: 'high', t: drop, v: -6, ramp: 'lin' },
+    { deck: 0, p: 'high', t: end - beat, v: -6 }, { deck: 0, p: 'high', t: end, v: 0, ramp: 'lin' },
+    { deck: 0, p: 'gain', t: B.end - 4 * barLen(T), v: 1 }, { deck: 0, p: 'gain', t: B.end, v: 0, ramp: 'lin' },
+  ];
+  const sh = semis ? `${top.camelot}→${shiftCamelot(top.camelot, semis)} (${semis > 0 ? '+' : ''}${semis} st)` : top.camelot;
+  return { decks: [B, A], ev: ev.sort((x, y) => x.t - y.t), reason: `R8: ${top.name} ${sh} over ${bed.name} ${bed.camelot}, both at ${T.toFixed(1)} BPM, ${L} bars layered` };
+}
 
 // ---------- R4: automation ----------
 export type Param = 'gain' | 'low' | 'mid' | 'high' | 'hp' | 'echo' | 'delay';
@@ -192,6 +250,8 @@ export function automation(decks: Deck[], trans: Transition[]): Auto[] {
     }
     add(i, 'gain', barAt(A, tr.outBar + (tr.bars * 3) / 4), 1); add(i, 'gain', e, 0, 'lin');
   });
+  const last = decks[decks.length - 1];
+  if (last?.track.seg) { add(decks.length - 1, 'gain', barAt(last, last.exitBar - 4), 1); add(decks.length - 1, 'gain', last.end, 0, 'lin'); } // R7.3 fade out
   return ev.sort((x, y) => x.t - y.t);
 }
 

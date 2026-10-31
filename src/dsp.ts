@@ -1,5 +1,5 @@
 // Key-locked time-stretch (SoundTouch WSOLA) + WAV/MP3 encoding.
-import { Stretch } from 'soundtouchjs';
+import { SoundTouch, Stretch } from 'soundtouchjs';
 import { Mp3Encoder } from '@breezystack/lamejs';
 import { barLen } from './analysis';
 
@@ -7,9 +7,11 @@ import { barLen } from './analysis';
  * R2.4: stretch bars [entryBar, entryBar+tempos.length) of a track to the given per-bar tempos without
  * changing pitch (downbeats land within ~3 ms, see test/dsp.test.ts). Output sample 0 is the entryBar downbeat; bar j ends at Σ barLen(tempos[0..j]).
  */
-export function stretch(L: Float32Array, R: Float32Array, sr: number, beat0: number, bpm: number, entryBar: number, tempos: number[]) {
-  const st = new Stretch(true);
-  st.setParameters(sr, 0, 0, 8);
+export function stretch(L: Float32Array, R: Float32Array, sr: number, beat0: number, bpm: number, entryBar: number, tempos: number[], semitones = 0) {
+  // pitch shift (A×B mashups, R8.2) needs SoundTouch's rate transposer; plain tempo uses Stretch alone
+  const st = semitones ? new SoundTouch() : new Stretch(true);
+  if (semitones) st.pitchSemitones = semitones;
+  else st.setParameters(sr, 0, 0, 8);
   const total = Math.round(tempos.reduce((s, t) => s + barLen(t), 0) * sr);
   const out = new Float32Array((total + sr) * 2);
   let w = 0;

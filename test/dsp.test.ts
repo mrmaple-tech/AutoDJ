@@ -25,6 +25,17 @@ test('stretch keeps downbeats on the planned grid (R2.4/R2.5)', () => {
   expect(worst / sr).toBeLessThan(0.005);
 });
 
+test('pitch shift keeps timing and moves pitch (R8.2)', () => {
+  const sr = 44100, n = sr * 4;
+  const x = Float32Array.from({ length: n }, (_, i) => Math.sin((2 * Math.PI * 440 * i) / sr) * 0.5);
+  const [y] = stretch(x, x, sr, 0, 120, 0, [120, 120], 3); // 2 bars, +3 semitones
+  expect(y.length).toBe(n);
+  let zc = 0; // count zero crossings in the middle second → frequency
+  for (let i = sr + 1; i < 2 * sr; i++) if (y[i - 1] < 0 && y[i] >= 0) zc++;
+  expect(zc).toBeGreaterThan(440 * 2 ** (3 / 12) - 8);
+  expect(zc).toBeLessThan(440 * 2 ** (3 / 12) + 8);
+});
+
 test('encoders produce valid files', () => {
   const x = Float32Array.from({ length: 44100 }, (_, i) => Math.sin(i / 10) * 1.5);
   const wav = new DataView(encodeWav(x, x, 44100));

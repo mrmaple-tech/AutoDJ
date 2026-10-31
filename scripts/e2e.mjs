@@ -49,6 +49,23 @@ await tl.saveAs(`${out}/tracklist.txt`);
 const [mp3] = await Promise.all([page.waitForEvent('download', { timeout: 300000 }), page.click('text=Export MP3')]);
 await mp3.saveAs(`${out}/mix.mp3`);
 console.log('exported in', Date.now() - t0, 'ms');
+// mashup mode: best ~50 s of each song
+await page.click('text=Highlights');
+await page.waitForFunction(() => !document.querySelector('.play')?.disabled, null, { timeout: 120000 });
+console.log('mashup length:', await page.$eval('.time', (e) => e.textContent));
+await page.screenshot({ path: `${out}/mashup.png` });
+const [mw] = await Promise.all([page.waitForEvent('download', { timeout: 300000 }), page.click('text=Export WAV')]);
+await mw.saveAs(`${out}/mashup.wav`);
+const [mt] = await Promise.all([page.waitForEvent('download'), page.click('text=Tracklist')]);
+await mt.saveAs(`${out}/mashup-tracklist.txt`);
+// A × B: song 3's top over song 1's beat
+await page.click('text=A × B');
+await page.selectOption('section.row select >> nth=0', { index: 3 });
+await page.waitForFunction(() => !document.querySelector('.play')?.disabled, null, { timeout: 120000 });
+console.log('A×B:', await page.$eval('section.row span', (e) => e.textContent), '|', await page.$eval('.time', (e) => e.textContent));
+await page.screenshot({ path: `${out}/axb.png` });
+const [xw] = await Promise.all([page.waitForEvent('download', { timeout: 300000 }), page.click('text=Export WAV')]);
+await xw.saveAs(`${out}/axb.wav`);
 await page.setViewportSize({ width: 390, height: 844 });
 await page.screenshot({ path: `${out}/mobile.png`, fullPage: true });
 await browser.close();

@@ -40,3 +40,6 @@ footer { text-align: center; padding: 10px; }
   .list li .ctl { grid-row: 1 / span 2; grid-column: 3; }
   .timeline { height: 130px; } .title { font-size: 16px; }
 }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { background: none; border: 0; color: var(--dim); padding: 7px 12px; cursor: pointer; font: inherit; }
+.seg button.on { background: var(--a); color: #001018; font-weight: 600; }

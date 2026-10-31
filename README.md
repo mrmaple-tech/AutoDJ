@@ -55,8 +55,9 @@ auto-mix research. Search the code for `R1`…`R6` to find where each rule is ap
    annealing then finds an order that also follows a warm-up → peak (~70%) → cool-down arc (R6). Locked tracks
    stay in place.
 3. **Transitions** (`src/plan.ts`)
-   - Type (R5): BPM gap > 6% → echo out. Key clash → quick cut on the "one" into the incoming drop.
-     ±2 energy move → 8-bar filter blend. Otherwise a 32-bar (warm-up) or 16-bar (peak) bass-swap blend.
+   - Type (R5): every automatic transition is a real overlapping mix. BPM gap > 8% → echo out. Key clash or
+     ±2 energy move → 8-bar filter blend (the high-pass masks the clash). Otherwise a 32-bar (warm-up) or 16-bar
+     (peak) bass-swap blend. Quick cut is available as a manual choice.
    - Placement: transitions start on the outgoing outro's phrase boundary. The incoming track's phrase start
      lands on that downbeat, timed so its first drop arrives as the outgoing track leaves (R5.5, R5.6).
    - Tempo drift (R2.5): during a blend both decks run at the midpoint BPM. Between transitions each track
@@ -69,6 +70,24 @@ auto-mix research. Search the code for `R1`…`R6` to find where each rule is ap
    drives both live playback and the offline export: trim → low shelf / mid peak / high shelf → high-pass →
    fader (+ echo send) → master → limiter. The export is rendered with `OfflineAudioContext`, kept at a
    -1 dBFS peak, and encoded to WAV, or to 320 kbps MP3 with lamejs in a worker.
+
+## Highlights mode
+
+Switch to **Highlights (~50 s each)** above the track list. Each song is cut down to its best ~50 s (R7):
+the 8-bar-aligned window that starts on a drop and has the most energy. Songs are chained drop-into-drop with
+8-bar blends, or filter blends for key clashes. Beatmatching, editing and export work the same in both modes.
+
+## A × B mashup
+
+Choose **A × B**, then pick **Song A** (vocals/melody) and **Song B** (beat/bass). ⇄ swaps them. AutoDJ plays
+both at once (R8):
+- Both songs meet at their midpoint tempo, with key lock.
+- A is pitch-shifted by the fewest semitones that make the two keys Camelot-compatible.
+- A's bassline is removed and its low end thinned, so only B's bass plays.
+- A's best drop lands exactly on B's best drop.
+
+The status line shows the shift and tempo used. Pairs more than 12% apart in tempo are refused rather than
+over-stretched.
 
 ## UI
 

@@ -22,7 +22,8 @@ Numbers are rules of thumb from DJ education sources, not hard standards; source
 - **R2.4** Always time-stretch with key lock (keep the original pitch); never plain playback-rate changes.
 - **R2.5** Don't jump the tempo at each transition: drift it. Both decks share one tempo during a blend
   (the midpoint of the two BPMs), and each track ramps slowly between its in- and out-transition tempos.
-- **R2.6** Big BPM gaps (> 6%) are not beatmatched; use a transition that doesn't need overlap (R5.3/R5.4).
+- **R2.6** Blends meet at the midpoint tempo, so a gap up to **8%** keeps each deck within ±4% (clean, R2.3).
+  Bigger gaps are not beatmatched; use an echo out (R5.3).
 
 ## R3 — Harmonic mixing (Camelot wheel, Mixed In Key)
 - **R3.1** Same code (8A→8A): perfect.
@@ -30,7 +31,7 @@ Numbers are rules of thumb from DJ education sources, not hard standards; source
 - **R3.3** Same number, switch letter (8A↔8B, relative major/minor): safe, changes mood.
 - **R3.4** +2 (8A→10A): "energy boost" — a noticeable lift, use sparingly.
 - **R3.5** Diagonal (8A→9B / 8B→7A): acceptable.
-- **R3.6** Anything else is a clash; long blends expose clashes most, so keep overlap short or avoid it.
+- **R3.6** Anything else is a clash; long blends expose clashes most, so keep the overlap short and filtered (R5.2).
 
 ## R4 — EQ technique
 - **R4.1** Never two full basslines at once. The incoming track enters with its low EQ killed.
@@ -44,12 +45,12 @@ Numbers are rules of thumb from DJ education sources, not hard standards; source
 ## R5 — Transition types and when they fit
 - **R5.1 Long blend (bass swap)** — 16–32 bars. Default for house when BPMs and keys are compatible (R3.1–R3.3, R3.5).
   32 bars in the warm-up (smooth, slow), 16 bars at peak time (faster mixing, R6.3) or when intro/outro is short.
-- **R5.2 Filter blend** — 8 bars, outgoing high-pass sweep + bass swap. For energy boosts (R3.4) and mild clashes
-  where tempos still match.
+- **R5.2 Filter blend** — 8 bars, outgoing high-pass sweep + bass swap. For energy boosts (R3.4) and key clashes (R3.6):
+  the high-pass strips the outgoing harmony while the incoming track takes over, so it is still a real mix.
 - **R5.3 Echo out** — outgoing echoes out on a phrase boundary (1-beat delay, feedback, high-passed),
   incoming starts on the "one". For big BPM gaps (R2.6), where nothing can be beatmatched.
 - **R5.4 Quick cut on the one** — switch on a downbeat at a phrase boundary, incoming starts on its first drop.
-  For hard key clashes (R3.6) at matched tempos: the tracks never sound together.
+  Never chosen automatically (a set of only cuts doesn't sound mixed); available as a manual choice.
 - **R5.5** Incoming phrase start lands exactly on an outgoing phrase boundary, downbeat on downbeat.
 - **R5.6** Mix out at the outgoing outro; time the blend so the incoming drop arrives as the outgoing leaves.
 
@@ -59,6 +60,23 @@ Numbers are rules of thumb from DJ education sources, not hard standards; source
 - **R6.3** Longer, smoother blends early; shorter, punchier blends at the peak.
 - **R6.4** Ordering = maximise (pairwise compatibility: BPM closeness R2, Camelot R3, energy flow R6.2)
   + (fit to the arc R6.1). User-locked positions are never moved.
+
+## R7 — Mashup / highlight mode
+- **R7.1** Each track contributes its best ~50 s: the phrase-aligned window (rounded to 8 bars) that starts on a
+  drop and has the highest mean energy — the part a crowd reacts to.
+- **R7.2** Highlights are short, so blends shrink to 8 bars (R6.3 "shorter, punchier"); every incoming track is
+  timed so its highlight drop lands as the outgoing highlight ends (R5.6), drop into drop.
+- **R7.3** The mashup starts one phrase before the first highlight drop and fades out over the last 4 bars.
+
+## R8 — A × B mashup (two songs at the same time)
+- **R8.1** Song B is the bed (drums + bassline); song A is the top layer (vocals/melody). A's low end is killed for
+  the whole mashup (R4.1) and high-passed to ~180 Hz; B's highs dip 6 dB while A is in so the top line sits clear.
+- **R8.2** Both run at the midpoint tempo, key-locked (R2.3–R2.5), so each song stretches at most 6%. A is then
+  pitch-shifted by the fewest semitones that make it Camelot-compatible with B (R3.1–R3.3, R3.5). Each semitone moves
+  the Camelot number 7 steps; shifts beyond ±2–3 semitones start to sound processed, so the smallest shift wins.
+- **R8.3** Structure: B's highlight drop (R7.1) is the anchor. B plays one phrase of lead-in, A rises in through a
+  4-bar high-pass sweep so A's best drop lands on B's drop (R5.5), they ride together for A's highlight length,
+  then A fades and B plays out one phrase and fades (R7.3).
 
 ## Sources
 - Phrasing: [DJKIT – Rule of 32](https://www.djkit.com/blogs/news/djing-rule-of-32),

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadFile, peaks, render, schedule, stretchDeck, toMp3, toWav } from './engine';
-import { automation, barAt, buildTimeline, defaultTransitions, orderTracks, place, tracklist, type Track, type Transition, type TType } from './plan';
+import { automation, barAt, buildLayer, buildTimeline, defaultTransitions, highlight, orderTracks, place, startsAfter, tracklist, type Track, type Transition, type TType } from './plan';
 
 interface Item { id: string; name: string; progress: number; error?: string; track?: Track; L?: Float32Array; R?: Float32Array }
 
@@ -23,21 +23,28 @@ export default function App() {
   const [sel, setSel] = useState<number | null>(null);
   const [busy, setBusy] = useState('');
   const [dragId, setDragId] = useState<string | null>(null);
+  const [mode, setMode] = useState<'full' | 'mashup' | 'axb'>('full');
+  const mashup = mode === 'mashup';
+  const [pair, setPair] = useState<[string, string]>(['', '']); // [top, bed] for A × B
   const ctxRef = useRef<AudioContext>();
   const stopRef = useRef<() => void>();
   const clock = useRef({ ctx0: 0, pos0: 0 });
 
   const byId = useMemo(() => new Map(items.map((i) => [i.id, i])), [items]);
-  const tracks = useMemo(() => order.map((id) => byId.get(id)!.track!).filter(Boolean), [order, byId]);
-  const decks = useMemo(() => (tracks.length && trans.length === tracks.length - 1 ? buildTimeline(tracks, trans) : []), [tracks, trans]);
-  const ev = useMemo(() => automation(decks, trans), [decks, trans]);
-  const keyOf = (i: number) => `${decks[i].track.id}|${decks[i].entryBar}|${decks[i].tempos.join(',')}`;
+  const seg = (t: Track): Track => (mashup ? { ...t, seg: highlight(t) } : t); // R7
+  const tracks = useMemo(() => order.map((id) => byId.get(id)!.track!).filter(Boolean).map(seg), [order, byId, mashup]); // eslint-disable-line react-hooks/exhaustive-deps
+  const top = byId.get(pair[0])?.track, bed = byId.get(pair[1])?.track;
+  const layer = useMemo(() => (mode === 'axb' && top && bed && top !== bed ? buildLayer(top, bed) : null), [mode, top, bed]);
+  const seqDecks = useMemo(() => (mode !== 'axb' && tracks.length && trans.length === tracks.length - 1 ? buildTimeline(tracks, trans) : []), [mode, tracks, trans]);
+  const decks = layer && 'decks' in layer ? layer.decks : seqDecks;
+  const ev = useMemo(() => (layer && 'ev' in layer ? layer.ev : mode === 'axb' ? [] : automation(seqDecks, trans)), [layer, seqDecks, trans]);
+  const keyOf = (i: number) => `${decks[i].track.id}|${decks[i].entryBar}|${decks[i].semis ?? 0}|${decks[i].tempos.join(',')}`;
   const deckBufs = decks.map((_, i) => buffers.get(keyOf(i)));
   const ready = decks.length > 0 && deckBufs.every(Boolean);
-  const total = decks.length ? decks[decks.length - 1].end : 0;
+  const total = decks.length ? Math.max(...decks.map((d) => d.end)) : 0;
 
   const applyOrder = (ids: string[]) => {
-    const ts = ids.map((id) => byId.get(id)!.track!);
+    const ts = ids.map((id) => seg(byId.get(id)!.track!));
     setOrder(ids); setTrans(defaultTransitions(ts)); setSel(null);
   };
   const autoOrder = (lock = locked) => applyOrder(orderTracks(tracks.length ? tracks : items.flatMap((i) => (i.track ? [i.track] : [])), lock).map((t) => t.id));
@@ -64,6 +71,9 @@ export default function App() {
     });
     return () => { live = false; };
   }, [decks]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => { if (order.length) applyOrder(order); }, [mashup]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (mode === 'axb' && (!byId.get(pair[0]) || !byId.get(pair[1]))) setPair([order[0] ?? '', order[1] ?? '']); }, [mode, order]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // pause whenever the plan changes
   useEffect(() => { stop(); }, [decks]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -130,7 +140,8 @@ export default function App() {
   const editTrans = (i: number, p: Partial<Pick<Transition, 'type' | 'bars' | 'outBar'>>) => {
     const t = trans[i], type = p.type ?? t.type;
     const bars = p.bars ?? (p.type ? (BARS[type].includes(t.bars) ? t.bars : BARS[type][1] ?? BARS[type][0]) : t.bars);
-    const n = place(tracks[i], tracks[i + 1], type, bars, p.outBar ?? t.outBar);
+    const mix = t.outBar + (startsAfter(t.type) ? t.bars : 0);
+    const n = place(tracks[i], tracks[i + 1], type, bars, p.outBar ?? mix - (startsAfter(type) ? bars : 0));
     setTrans(trans.map((x, k) => (k === i ? { ...n, reason: 'Manual edit' } : x)));
   };
 
@@ -151,6 +162,15 @@ export default function App() {
         </div>
       )}
 
+      {mode === 'axb' && (
+        <section className="row">
+          <label>Song A (vocals / melody) <select value={pair[0]} onChange={(e) => setPair([e.target.value, pair[1]])}>{order.map((id) => <option key={id} value={id}>{byId.get(id)!.name}</option>)}</select></label>
+          <button className="btn" title="Swap A and B" onClick={() => setPair([pair[1], pair[0]])}>⇄</button>
+          <label>Song B (beat / bass) <select value={pair[1]} onChange={(e) => setPair([pair[0], e.target.value])}>{order.map((id) => <option key={id} value={id}>{byId.get(id)!.name}</option>)}</select></label>
+          <span className={layer && 'error' in layer ? 'err small' : 'dim small'}>{!layer ? 'Pick two different songs.' : 'error' in layer ? layer.error : layer.reason}</span>
+        </section>
+      )}
+
       {decks.length > 0 && (
         <section className="deck">
           <div className="now">
@@ -164,8 +184,8 @@ export default function App() {
               <div className="time">{fmt(pos)} / {fmt(total)}</div>
             </div>
           </div>
-          <Timeline decks={decks} trans={trans} buffers={deckBufs} pos={pos} total={total} sel={sel} onSeek={seek} onSelect={setSel} />
-          {sel !== null && trans[sel] && (
+          <Timeline decks={decks} trans={mode === 'axb' ? [] : trans} buffers={deckBufs} pos={pos} total={total} sel={sel} onSeek={seek} onSelect={setSel} />
+          {mode !== 'axb' && sel !== null && trans[sel] && (
             <div className="editor">
               <div><b>{tracks[sel].name}</b> → <b>{tracks[sel + 1].name}</b> <button className="x" onClick={() => setSel(null)}>✕</button></div>
               <div className="dim small">{trans[sel].reason}</div>
@@ -176,7 +196,8 @@ export default function App() {
                 <label>Length <select value={trans[sel].bars} onChange={(e) => editTrans(sel, { bars: +e.target.value })}>
                   {BARS[trans[sel].type].map((b) => <option key={b} value={b}>{b} bars</option>)}
                 </select></label>
-                <label>Start bar <input type="number" step={8} min={0} max={tracks[sel].bars - trans[sel].bars} value={trans[sel].outBar} onChange={(e) => editTrans(sel, { outBar: Math.round(+e.target.value / 8) * 8 })} /></label>
+                <label>Mix point bar <input type="number" step={8} min={0} max={tracks[sel].bars} value={trans[sel].outBar + (startsAfter(trans[sel].type) ? trans[sel].bars : 0)}
+                  onChange={(e) => editTrans(sel, { outBar: Math.round(+e.target.value / 8) * 8 - (startsAfter(trans[sel].type) ? trans[sel].bars : 0) })} /></label>
                 <button className="btn" onClick={() => setTrans(trans.map((x, k) => (k === sel ? defaultTransitions(tracks)[sel] : x)))}>Auto</button>
               </div>
             </div>
@@ -194,6 +215,11 @@ export default function App() {
         <section>
           <div className="row between">
             <h2>Set order</h2>
+            <div className="seg" role="group" aria-label="Mix mode">
+              <button className={mode === 'full' ? 'on' : ''} onClick={() => setMode('full')}>Full mix</button>
+              <button className={mode === 'mashup' ? 'on' : ''} onClick={() => setMode('mashup')}>Highlights (~50 s each)</button>
+              <button className={mode === 'axb' ? 'on' : ''} disabled={tracks.length < 2} onClick={() => setMode('axb')}>A × B</button>
+            </div>
             <button className="btn" disabled={tracks.length < 2} onClick={() => autoOrder()}>Auto-order</button>
           </div>
           <ol className="list">
@@ -224,7 +250,7 @@ export default function App() {
           ))}
         </section>
       )}
-      <footer className="dim small">Mixing logic: see MIXING_RULES.md — every decision cites a rule (R1–R6).</footer>
+      <footer className="dim small">Mixing logic: see MIXING_RULES.md — every decision cites a rule (R1–R8).</footer>
     </div>
   );
 }

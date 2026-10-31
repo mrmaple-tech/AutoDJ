@@ -40,7 +40,7 @@ export async function loadFile(file: File, onProgress: (p: number) => void) {
 /** R2.4: key-locked stretch of one deck to its tempo plan. */
 export async function stretchDeck(d: Deck, L: Float32Array, R: Float32Array) {
   const t = d.track;
-  const [sL, sR] = await run<[Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>]>({ type: 'stretch', L, R, sr: SR, beat0: t.beat0, bpm: t.bpm, entryBar: d.entryBar, tempos: d.tempos });
+  const [sL, sR] = await run<[Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>]>({ type: 'stretch', L, R, sr: SR, beat0: t.beat0, bpm: t.bpm, entryBar: d.entryBar, tempos: d.tempos, semis: d.semis ?? 0 });
   const ab = new AudioBuffer({ numberOfChannels: 2, length: sL.length, sampleRate: SR });
   ab.copyToChannel(sL, 0); ab.copyToChannel(sR, 1);
   return ab;
@@ -103,7 +103,7 @@ export function schedule(ctx: BaseAudioContext, decks: Deck[], buffers: AudioBuf
 
 /** Offline render of the full mix (R4.6: final peak safety at -1 dBFS). */
 export async function render(decks: Deck[], buffers: AudioBuffer[], ev: Auto[]) {
-  const len = Math.ceil((decks[decks.length - 1].end + 2) * SR);
+  const len = Math.ceil((Math.max(...decks.map((d) => d.end)) + 2) * SR);
   // ponytail: whole mix in memory (~1 GB/hour stereo float); chunked rendering if sets get longer than ~1.5 h
   const ctx = new OfflineAudioContext(2, len, SR);
   schedule(ctx, decks, buffers, ev);
