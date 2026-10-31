@@ -12,7 +12,7 @@
     "type": "git",
     "url": "git+https://github.com/mrmaple-tech/AutoDJ.git"
   },
-  "license": "ISC",
+  "license": "AGPL-3.0",
   "bugs": {
     "url": "https://github.com/mrmaple-tech/AutoDJ/issues"
   },

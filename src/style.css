@@ -1,0 +1,42 @@
+:root { --bg: #0b0d12; --panel: #141821; --line: #232937; --text: #e8ebf2; --dim: #8a93a6; --a: #00d1ff; --b: #ff3d9a; --amber: #ffb800; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+.app { max-width: 1200px; margin: 0 auto; padding: 16px; min-height: 100vh; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+h1 { margin: 0; font-size: 24px; letter-spacing: 1px; } h1 span { color: var(--a); }
+h2 { margin: 0; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; color: var(--dim); }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+.dim { color: var(--dim); } .small { font-size: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; } .between { justify-content: space-between; margin-bottom: 8px; }
+.btn { background: #1f2533; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
+.btn:hover:not(:disabled) { border-color: var(--a); } .btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--a); color: #001018; border: 0; font-weight: 600; }
+.drop { border: 2px dashed var(--line); border-radius: 12px; padding: 60px 20px; text-align: center; }
+.deck .now { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 10px; }
+.title { font-size: 20px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60vw; }
+.tags { display: inline-flex; gap: 6px; flex-wrap: wrap; } .tags span { background: #1f2533; border-radius: 4px; padding: 1px 6px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.tags .key { background: #2a2140; color: #c9a7ff; }
+.transport { display: flex; align-items: center; gap: 12px; } .time { font-variant-numeric: tabular-nums; color: var(--dim); }
+.btn.play { width: 52px; height: 52px; border-radius: 50%; font-size: 18px; background: var(--a); color: #001018; border: 0; }
+.timeline { width: 100%; height: 160px; display: block; background: #0d1017; border-radius: 6px; cursor: pointer; touch-action: manipulation; }
+.editor { margin-top: 10px; padding: 10px; border: 1px solid var(--amber); border-radius: 8px; display: grid; gap: 8px; }
+.editor .x { float: right; background: none; border: 0; color: var(--dim); cursor: pointer; }
+select, input { background: #0d1017; color: var(--text); border: 1px solid var(--line); border-radius: 4px; padding: 5px; font: inherit; }
+input[type=number] { width: 70px; } label { display: inline-flex; gap: 6px; align-items: center; }
+.exports { margin-top: 10px; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto 160px auto; gap: 10px; align-items: center; padding: 7px 6px; border-bottom: 1px solid var(--line); cursor: grab; }
+.list li.dragging { opacity: .4; } .list li.cur { background: #172030; }
+.num { color: var(--dim); text-align: right; font-variant-numeric: tabular-nums; }
+.name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.secs { display: flex; height: 10px; gap: 1px; } .secs i { flex: 1; border-radius: 1px; background: #2b3242; }
+.s-drop { background: var(--b) !important; } .s-breakdown { background: #6b5bd6 !important; } .s-intro, .s-outro { background: #2f6f86 !important; }
+.ctl { display: flex; gap: 2px; } .ctl button { background: none; border: 1px solid transparent; color: var(--dim); cursor: pointer; padding: 4px 6px; border-radius: 4px; }
+.ctl button:hover:not(:disabled) { border-color: var(--line); } .ctl button.on { color: var(--amber); } .ctl button:disabled { opacity: .3; }
+.pending { display: flex; gap: 10px; align-items: center; padding: 6px; } .pending progress { width: 140px; } .err { color: #ff6b6b; }
+footer { text-align: center; padding: 10px; }
+@media (max-width: 640px) {
+  .list li { grid-template-columns: 22px minmax(0, 1fr) auto; } .list li .secs { display: none; } .list li .tags { grid-column: 2; }
+  .list li .ctl { grid-row: 1 / span 2; grid-column: 3; }
+  .timeline { height: 130px; } .title { font-size: 16px; }
+}
